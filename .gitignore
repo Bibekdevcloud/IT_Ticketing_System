@@ -1,5 +1,6 @@
 # dependencies
 node_module/
+**/node_module/
 
 # env files(secrets)
 .env
@@ -20,3 +21,7 @@ yarn-error.log*
 .DS_Store
 .vscode/
 .idea/
+
+# dependencies (never commit)
+node_modules/
+**/node_modules/
