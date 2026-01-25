@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 export default function App() {
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
   const COMPANY = "NorthBridge Technologies";
   const APP = "Internal IT Ticket System";
@@ -66,26 +66,34 @@ export default function App() {
     setError("");
   }
 
-  async function postJson(path, payload) {
-    const res = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+  // ---- Small API helpers (THIS is where token is used) ----
+  async function requestJson(method, path, payload) {
+    const res = await fetch (path, {
+      method,
+      headers: {
+        ...(payload ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: payload ? JSON.stringify(payload) : undefined
     });
+
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     return data;
   }
+
+  const postJson = (path, payload) => requestJson("POST", path, payload);
+  const getJson = (path) => requestJson("GET", path);
+  const patchJson = (path, payload) => requestJson("PATCH", path, payload);
+  const deleteJson = (path) => requestJson("DELETE", path);
 
   async function signup(e) {
     e.preventDefault();
     try {
       setError("");
       setLoading(true);
-
       const data = await postJson("/api/auth/signup", { name, department, password });
       saveSession(data.token, data.user);
-
       setName("");
       setDepartment("");
       setPassword("");
@@ -101,10 +109,8 @@ export default function App() {
     try {
       setError("");
       setLoading(true);
-
       const data = await postJson("/api/auth/login", { name, password });
       saveSession(data.token, data.user);
-
       setName("");
       setPassword("");
     } catch (err) {
@@ -118,13 +124,7 @@ export default function App() {
     try {
       setError("");
       setLoading(true);
-
-      const res = await fetch(`${API_URL}/api/tickets`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const data = await res.json().catch(() => []);
-      if (!res.ok) throw new Error(data.error || `Fetch failed (${res.status})`);
+      const data = await getJson("/api/tickets");
       setTickets(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message);
@@ -139,17 +139,7 @@ export default function App() {
       setError("");
       setLoading(true);
 
-      const res = await fetch(`${API_URL}/api/tickets`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ title, description, priority })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Create failed (${res.status})`);
+      await postJson("/api/tickets", { title, description, priority });
 
       setTitle("");
       setDescription("");
@@ -162,23 +152,14 @@ export default function App() {
     }
   }
 
-  async function resolveTicket(id) {
+  async function deleteTicket(id) {
+    const ok = window.confirm("Delete this ticket?");
+    if (!ok) return;
+
     try {
       setError("");
       setBusyId(id);
-
-      const res = await fetch(`${API_URL}/api/tickets/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: "resolved" })
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Update failed (${res.status})`);
-
+      await deleteJson(`/api/tickets/${id}`);
       await fetchTickets();
     } catch (err) {
       setError(err.message);
@@ -187,22 +168,11 @@ export default function App() {
     }
   }
 
-  async function deleteTicket(id) {
-    const ok = window.confirm("Delete this ticket?");
-    if (!ok) return;
-
+  async function resolveTicket(id) {
     try {
       setError("");
       setBusyId(id);
-
-      const res = await fetch(`${API_URL}/api/tickets/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || `Delete failed (${res.status})`);
-
+      await patchJson(`/api/tickets/${id}`, { status: "resolved" });
       await fetchTickets();
     } catch (err) {
       setError(err.message);
@@ -218,12 +188,12 @@ export default function App() {
 
   // ---- Styles ----
   const page = { minHeight: "100vh", background: "#f6f7fb", padding: "24px 32px" };
-  const wrap = { width: "100%", maxWidth: "none", margin: "0", display: "grid", gap: 18 };
+  const wrap = { width: "100%", maxWidth: "none", margin: 0, display: "grid", gap: 18 };
   const card = { background: "white", borderRadius: 14, padding: 18, boxShadow: "0 8px 24px rgba(15,23,42,0.08)" };
-  const input = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14 };
+  const input = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, background: "white", color: "#0f172a" };
   const label = { display: "grid", gap: 6 };
   const labelTxt = { fontSize: 12, color: "#334155", fontWeight: 900 };
-  const btn = { border: "1px solid #e2e8f0", background: "white", color:"#0f172a", padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontWeight: 900 };
+  const btn = { border: "1px solid #e2e8f0", background: "white", color: "#0f172a", padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontWeight: 900 };
   const btnPrimary = { border: "none", background: "#0f172a", color: "white", padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontWeight: 900 };
   const badge = { fontSize: 12, fontWeight: 900, padding: "6px 10px", borderRadius: 999 };
 
@@ -255,7 +225,7 @@ export default function App() {
 
               <button
                 onClick={() => setMode("signup")}
-                style={mode === "signup" ? { ...btn, background: "#0f172a", color: "white" } : btn}
+                style={mode === "signup" ? { ...btn, background: "#0f172a", color: "white", borderColor: "#0f172a" } : btn}
               >
                 Create Account
               </button>
@@ -382,7 +352,6 @@ export default function App() {
                 <div style={{ fontWeight: 900, color: "#0f172a", fontSize: 16 }}>Tickets</div>
                 <div style={{ color: "#64748b", fontSize: 13, marginTop: 6 }}>{tickets.length} total</div>
               </div>
-              <div style={{ fontSize: 12, color: "#64748b" }}>{loading ? "Loading..." : "Ready"}</div>
             </div>
 
             <div style={{ marginTop: 14 }}>
@@ -458,4 +427,5 @@ export default function App() {
     </div>
   );
 }
+
 

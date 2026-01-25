@@ -158,6 +158,19 @@ app.post("/api/tickets", authMiddleware, (req, res) => {
   res.status(201).json(newTicket);
 });
 
+// ---- Tickets: Delete (protected) ----
+app.delete("/api/tickets/:id", authMiddleware, (req, res) => {
+  const id = Number(req.params.id);
+  if (Number.isNaN(id)) return res.status(400).json({ error: "id must be a number" });
+
+  const index = tickets.findIndex((t) => t.id === id);
+  if (index === -1) return res.status(404).json({ error: "ticket not found" });
+
+  const deleted = tickets.splice(index, 1)[0];
+  res.json({ message: "ticket deleted", deleted });
+});
+
+
 // ---- Tickets: Update status (protected) ----
 app.patch("/api/tickets/:id", authMiddleware, (req, res) => {
   const id = Number(req.params.id);
