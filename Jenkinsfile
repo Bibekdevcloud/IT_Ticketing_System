@@ -26,20 +26,22 @@ pipeline {
 
     stage("Build and Deploy Docker compose") {
       steps {
-      sh '''
-        set -e
-        cd "${$DEPLOY_DIR}"
+        sh '''#!/usr/bin/env bash
+    set -e
+
+    cd /opt/it-ticket-system
 
         # build container from latest code
-        docker compose build
+    docker compose down
+    docker compose build
 
         # restart containers with new images
-        docker compose up -d
+    docker compose up -d
 
         # optional: show running containers
-        docker ps
+    docker ps
 
-      '''
+    '''
 
 
 
