@@ -18,11 +18,19 @@ pipeline {
 
     stage("Sync to deploy dir") {
       steps {
-        sh '''
+        sh '''#!/usr/bin/env bash
           set -e
-          sudo mkdir -p "$DEPLOY_DIR"
-          sudo rsync -av --delete --exclude ".git" ./ "$DEPLOY_DIR"/
+
+          mkdir -p "$DEPLOY_DIR"
+
+          # Sync repo -> deploy folder, but never overwrite/delete env secrets
+          rsync -av --delete \
+            --exclude ".git" \
+            --exclude "backend/.env" \
+            --exclude "frontend/.env" \
+            ./ "$DEPLOY_DIR"/
         '''
+
       }
     }
 
