@@ -17,10 +17,10 @@ pipeline {
 
     stage("sync to deploy dir") {
       steps {
-        sh '''
-          set -e
-          rsync -av --delete --exclude ".git" ./ "${DEPLOY_DIR}/"
-          '''
+        sh '''#!/usr/bin/env bash
+    set -e
+    rsync -av --delete --exclude .git --exclude backend/.env ./ /opt/it-ticket-system/
+    '''
       }
     }
 
