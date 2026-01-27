@@ -77,13 +77,29 @@ pipeline {
       }
     }
 
+    stage("Smoke test") {
+  steps {
+    sh '''#!/usr/bin/env bash
+      set -e
+      sleep 5
+      
+      echo "checking backend health..."
+      curl -fsS http://localhost/health > /dev/null
+
+      echo "checking frontend health..."
+      curl -fsS http://localhost/ > /dev/null
+
+      echo "smoke test OK"
+    '''
+  }
+}
+
+
     stage("Post-Deploy: Health Check") {
       steps {
         sh '''
           set -e
-
-          # Frontend should respond
-          curl -fsS http://localhost/ > /dev/null
+          
 
           # Backend ticket endpoint returns 401 without token (that's OK)
           code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/tickets)
