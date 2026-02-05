@@ -54,8 +54,7 @@ pipeline {
           set -e
           cd "$DEPLOY_DIR/backend"
           npm ci
-          # If tests are not set up yet, don't fail the pipeline
-          npm test || echo "No tests configured yet - skipping"
+          npm test
         '''
       }
     }
