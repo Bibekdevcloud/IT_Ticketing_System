@@ -34,16 +34,19 @@ pipeline {
       }
     }
 
-    stage("CI: Lint Frontend") {
+    stage("CI: Lint + Test Frontend") {
       steps {
         sh '''
           set -e
           cd "$DEPLOY_DIR/frontend"
           npm ci
           npm run lint
+          npm run test:ci
         '''
       }
     }
+
+
 
     stage("CI: Test Backend") {
       steps {
