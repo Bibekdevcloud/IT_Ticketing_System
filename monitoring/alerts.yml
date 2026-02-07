@@ -1,0 +1,30 @@
+groups:
+  - name: app-alerts
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend_health"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is DOWN"
+          description: "Prometheus cannot scrape backend /metrics for 30s."
+
+      - alert: InstanceDown
+        expr: up{job="node_exporter"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node Exporter is DOWN"
+          description: "EC2 host metrics are not being scraped."
+
+      - alert: CadvisorDown
+        expr: up{job="cadvisor"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "cAdvisor is DOWN"
+          description: "Container metrics are not being scraped."
+
