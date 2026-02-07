@@ -2,9 +2,15 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const client = require("prom-client");
 require("dotenv").config();
 
 const app = express();
+
+// ===== Prometheus metrics =====
+client.collectDefaultMetrics();
+const register = client.register;
+
 
 app.use(cors());
 app.use(express.json());
@@ -46,6 +52,13 @@ function authMiddleware(req, res, next) {
 
 // ====== Routes ======
 app.get("/health", (req, res) => res.json({ status: "ok" }));
+
+// ===== Prometheus scrape endpoint =====
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
+
 
 app.post("/api/auth/signup", async (req, res) => {
   const { name, department, password } = req.body;
