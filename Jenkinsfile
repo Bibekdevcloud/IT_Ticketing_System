@@ -59,6 +59,34 @@ pipeline {
       }
     }
 
+    stage("Build & Push Images") {
+  steps {
+    withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+      sh '''
+        set -e
+
+        # Create a unique tag for this build
+        TAG=${BUILD_NUMBER}
+
+        # Login to Docker Hub (needed to push)
+        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+        # Build backend image from ./backend/Dockerfile
+        docker build -t $DOCKER_USER/it-ticket-system-backend:$TAG ./backend
+
+        # Build frontend image from ./frontend/Dockerfile
+        docker build -t $DOCKER_USER/it-ticket-system-frontend:$TAG ./frontend
+
+        # Push both images to Docker Hub
+        docker push $DOCKER_USER/it-ticket-system-backend:$TAG
+        docker push $DOCKER_USER/it-ticket-system-frontend:$TAG
+
+        echo "Pushed images with tag: $TAG"
+      '''
+    }
+  }
+}
+
     stage("Deploy: Kubernetes (iticket-dev)") {
   steps {
     sh '''
@@ -71,6 +99,10 @@ pipeline {
 
       # Apply ingress
       kubectl apply -n iticket-dev -f ingress-dev.yml
+
+      # Update deployments to the new image tag
+      kubectl -n iticket-dev set image deploy/backend backend=bibekpokhrel977/it-ticket-system-backend:$TAG
+      kubectl -n iticket-dev set image deploy/frontend frontend=bibekpokhrel977/it-ticket-system-frontend:$TAG
 
       # Wait for deployments to be ready (no half-deploy)
       kubectl -n iticket-dev rollout status deployment/backend --timeout=180s
@@ -86,6 +118,9 @@ pipeline {
     sh '''
       set -e
       sleep 5
+
+       # Ingress controller NodePort (your port is 30520)
+       PORT=30520
 
       echo "checking backend health via ingress..."
       curl -fsS http://localhost:30520/health > /dev/null
