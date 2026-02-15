@@ -59,42 +59,52 @@ pipeline {
       }
     }
 
-    stage("Deploy: Docker Compose Up") {
-      steps {
-        sh '''
-          set -e
-          cd "$DEPLOY_DIR"
-
-          # Make sure backend env exists on the server
-          if [ ! -f "$DEPLOY_DIR/backend/.env" ]; then
-            echo "ERROR: backend/.env is missing on server at $DEPLOY_DIR/backend/.env"
-            exit 1
-          fi
-
-          docker compose down
-          docker compose build
-          docker compose up -d
-          docker ps
-        '''
-      }
-    }
-
-    stage("Smoke test") {
+    stage("Deploy: Kubernetes (iticket-dev)") {
   steps {
-    sh '''#!/usr/bin/env bash
+    sh '''
+      set -e
+
+      echo "Deploying to Kubernetes namespace: iticket-dev"
+
+      # Apply backend+frontend manifests
+      kubectl apply -n iticket-dev -f k8s.yml
+
+      # Apply ingress
+      kubectl apply -n iticket-dev -f ingress-dev.yml
+
+      # Wait for deployments to be ready (no half-deploy)
+      kubectl -n iticket-dev rollout status deployment/backend --timeout=180s
+      kubectl -n iticket-dev rollout status deployment/frontend --timeout=180s
+
+      echo "Kubernetes deploy complete"
+    '''
+  }
+}
+
+    stage("Smoke test (K8s Ingress)") {
+  steps {
+    sh '''
       set -e
       sleep 5
-      
-      echo "checking backend health..."
-      curl -fsS http://localhost/health > /dev/null
 
-      echo "checking frontend health..."
-      curl -fsS http://localhost/ > /dev/null
+      echo "checking backend health via ingress..."
+      curl -fsS http://localhost:30520/health > /dev/null
+
+      echo "checking frontend via ingress..."
+      curl -fsS http://localhost:30520/ > /dev/null
+
+      echo "checking tickets endpoint (should be 401 without token)..."
+      code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:30520/api/tickets)
+      if [ "$code" != "401" ] && [ "$code" != "200" ]; then
+        echo "Unexpected status from /api/tickets: $code"
+        exit 1
+      fi
 
       echo "smoke test OK"
     '''
   }
 }
+
 
 
     stage("Post-Deploy: Health Check") {
